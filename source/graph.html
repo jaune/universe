@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js canvas - interactive - cubes</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #000;
+				margin: 0px;
+				overflow: hidden;
+			}
+		</style>
+	</head>
+	<body>
+		<script src="/library/zepto.min.js"></script>
+		<script src="/library/three.js/build/three.min.js"></script>
+		<script src="/source/MyControls.js"></script>
+
+		<script>
+
+			var container, stats;
+			var camera, controls, scene, projector, renderer;
+			var text_overlay;
+
+			var systemTexture = new THREE.Texture(); 
+			var systemMaterial = new THREE.ParticleBasicMaterial({ map: systemTexture });
+
+			var totemTexture = new THREE.Texture(); 
+			var totemMaterial = new THREE.ParticleBasicMaterial({ map: totemTexture });
+
+			
+
+			var player_id = '50ef3f86ed6253b412000002';
+
+			function loadObject(url, next) {
+				$.getJSON(url, function (data, status, xhr) {
+					if (!$.isPlainObject(data)) {
+						next(new Error('Must be an Object `'+url+'`.'));
+						return;
+					}
+					next(null, data);
+				});
+			}
+
+			function loadArray(url, next) {
+				$.getJSON(url, function (data, status, xhr) {
+					if (!$.isArray(data)) {
+						next(new Error('Must be an Array `'+url+'`.'));
+						return;
+					}
+					next(null, data);
+				});
+			}
+
+			function loadPlayer(player_id, next) {
+				loadObject('/players/'+player_id, function (err, player) {
+					if (err) { next(err); return; }
+					next(null, player);
+				});
+			}
+
+			function loadPlayerSubsector(player_id, x, y, next) {
+				loadObject('/players/'+player_id+'/subsectors/'+x+'/'+y, function (err, subsector) {
+					if (err) { next(err); return; }
+					next(null, subsector);
+				});
+			}
+
+
+			var Subsector = function () {
+			};
+
+			Subsector.SIZE = 800;
+
+			var Sector = function () {
+				this.box = new THREE.Box2(new THREE.Vector2(), new THREE.Vector2());
+				this.player_id = null;
+				this.subsectors = {};
+			};
+
+			Sector.prototype.setPlayerId = function (player_id) {
+				this.player_id = player_id;
+			}
+
+			Sector.prototype.showSubsector = function (x, y) {
+				var key = x+':'+y;
+
+				if (this.subsectors.hasOwnProperty(key)) {
+					this.subsectors[key].group.visible = true;
+					return;
+				}
+
+				var group = new THREE.Object3D();
+				group.position.x = x * Subsector.SIZE;
+				group.position.z = y * Subsector.SIZE;
+				this.subsectors[key] = {
+					group: group,
+					data: null
+				};
+				scene.add( group );
+
+				this.loadSubsector(x, y);
+			};
+
+			Sector.prototype.loadSubsector = function (x, y) {
+				var me = this;
+				loadPlayerSubsector(this.player_id, x, y, function (err, subsector) {
+					if (err) { throw err; }
+					if (!$.isArray(subsector.systems)) {
+						return;
+					}
+					var key = x+':'+y;
+					var group = me.subsectors[key].group;
+					subsector.systems.forEach(function (system) {
+						var particle = new THREE.Particle( systemMaterial );
+						particle.position.x = system.x * Subsector.SIZE;
+						particle.position.z = system.y * Subsector.SIZE;
+						particle.scale.x = particle.scale.y = 0.1;
+						group.add( particle );
+					});
+				});
+			};
+
+			Sector.prototype.unloadSubsector = function (x, y) {
+				var key = x+':'+y;
+				if (this.subsectors.hasOwnProperty(key)) {
+					delete this.subsectors[key];
+				}
+			};
+
+			Sector.prototype.hideSubsector = function (x, y) {
+				var key = x+':'+y;
+				if (this.subsectors.hasOwnProperty(key)) {
+					this.subsectors[key].group.visible = false;
+					return;
+				}
+				this.unloadSubsector(x, y);
+			};
+
+			Sector.prototype.applyView = function (view_box) {
+				if (!this.player_id) {
+					return;
+				}
+				if (this.box.equals(view_box)) {
+					return;
+				}
+
+				var box = new THREE.Box2();
+				box.copy(this.box).union(view_box);
+				var point = new THREE.Vector2();
+				for (var x = box.min.x; x < box.max.x; x++) {
+					for (var y = box.min.y; y < box.max.y; y++) {
+						point.x = x;
+						point.y = y;
+						if (view_box.containsPoint(point)) {
+							
+							this.showSubsector(x, y);
+						} else {
+
+							this.hideSubsector(x, y);
+						}
+					}
+				}
+				this.box.copy(view_box);
+			};
+
+			var sector = new Sector();
+
+
+/*
+			$.getJSON('/players/'+player_id, function (player, status, xhr) {
+				if (!$.isPlainObject(player)) {
+					console.error('--*--');
+					return;
+				}
+				if (!data.hasOwnProperty('throne')) {
+					console.error('--*--');
+					return;
+				}
+				loadSector(player.throne.sector, function () {
+					next();
+				});
+			});
+
+			$.getJSON('/players/'+player_id+'/totems/', function (data, status, xhr) {
+				console.debug(status);
+				if (!$.isArray(data)) {
+					console.error('--*--');
+					return;
+				}
+				data.forEach(function (totem) {
+					if (!$.isArray(totem.systems)) {
+						console.error('--*--');
+						return;
+					}
+					totem.systems.forEach(function (system) {
+						console.debug('-#-');
+						console.debug(system);
+					});
+				});
+			});
+*/
+			initTexture(systemTexture, '/asset/Icon_Art_v7_quote.png', function (err) {
+				if (err) {
+					throw new Error(err);
+				}
+				initTexture(totemTexture, '/asset/Tiki-Totems-2-icon.png', function (err) {
+					if (err) {
+						throw new Error(err);
+					}
+					init();
+				});
+			});
+	
+
+			function initTexture(texture, url, next) {
+				var loader = new THREE.ImageLoader();
+				loader.addEventListener('error', function ( event ) {
+					next(event.message);
+				});
+				loader.addEventListener('load', function ( event ) {
+					texture.image = event.content;
+					texture.needsUpdate = true;
+					next();
+				});
+				loader.load(url);
+			}
+
+			function init() {
+
+				container = document.createElement( 'div' );
+
+				var overlays = document.createElement( 'div' );
+				overlays.setAttribute('class', 'overlays');
+
+				text_overlay = document.createElement( 'div' );
+
+				text_overlay.setAttribute('class', 'text-overlay');
+
+				text_overlay.setAttribute('style', 'position: absolute; top: 0px; left: 0px;');
+
+				overlays.appendChild(text_overlay);
+
+				container.appendChild(overlays);
+
+				document.body.appendChild( container );
+
+				camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 10000 );
+				camera.position.set( 0, 75, 125 );
+
+				controls = new THREE.MyControls( camera );
+
+				controls.minPolarAngle = 0; // radians
+				controls.maxPolarAngle = Math.PI / 2.5; // radians
+
+				controls.addEventListener( 'change', render );
+
+				scene = new THREE.Scene();
+
+				// var geometry = new THREE.CubeGeometry( 100, 100, 100 );
+
+				// var geometry = new THREE.SphereGeometry(10);
+
+				// var geometryLines = new THREE.Geometry();
+
+/*
+				for ( var i = 0; i < 10; i ++ ) {
+
+					var system = new THREE.Particle( systemMaterial );
+					system.position.x = Math.random() * 800 - 400;
+					system.position.z = Math.random() * 800 - 400;
+					system.scale.x = system.scale.y = 0.1;
+					scene.add( system );
+
+					systems.push(system);
+
+					// geometryLines.vertices.push( object.position );
+
+				}
+*/
+
+				// var line = new THREE.Line( geometryLines, new THREE.LineBasicMaterial( { linewidth : 5, color: 0xffffff, opacity: 0.5 } ) );
+				// scene.add( line );
+
+				projector = new THREE.Projector();
+
+				
+				renderer = new THREE.CanvasRenderer();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+				container.appendChild( renderer.domElement );
+
+				
+				// document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+
+				renderer.domElement.addEventListener( 'click', onRendererClick, false );
+				window.addEventListener( 'resize', onWindowResize, false );
+
+				requestAnimationFrame( animate );
+
+				loadPlayer(player_id, function (err, player) {
+					if (err) { throw err; }
+
+					sector.setPlayerId(player_id);
+
+				});
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			function onRendererClick( event ) {
+				var vector = new THREE.Vector3(
+					( event.clientX / window.innerWidth ) * 2 - 1,
+					- ( event.clientY / window.innerHeight ) * 2 + 1,
+					0.5 );
+				projector.unprojectVector( vector, camera );
+				var ray = new THREE.Ray( camera.position, vector.subSelf( camera.position ).normalize() );
+
+				var plane = new THREE.Plane(new THREE.Vector3( 0, 1, 0 ));
+				var intersection = new THREE.Vector3();
+				if (event.shiftKey && ray.intersectPlane(plane, intersection)) {
+					
+
+					var totem = new THREE.Particle( totemMaterial );
+					totem.position.copy(intersection);
+					totem.scale.x = totem.scale.y = 0.1;
+					scene.add( totem );
+				}
+			}
+
+
+			var view_box = new THREE.Box2();
+			
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				controls.update();
+
+				// console.debug(controls);
+
+				view_box.min.x = Math.floor((controls.center.x / Subsector.SIZE) - 5);
+				view_box.min.y = Math.floor((controls.center.z / Subsector.SIZE) - 5);
+				view_box.max.x = Math.ceil((controls.center.x / Subsector.SIZE) + 5);
+				view_box.max.y = Math.ceil((controls.center.z / Subsector.SIZE) + 5);
+
+				sector.applyView(view_box);
+
+				render();
+
+				
+			}
+
+
+
+			var radius = 600;
+			var theta = 0;
+
+			function render() {
+				theta += 0.2;
+
+
+
+
+				renderer.render( scene, camera );
+/*
+				var vector = new THREE.Vector3();
+
+				vector.copy(systems[0].position);
+				projector.projectVector(vector, camera);
+
+				var x = vector.x;
+				var y = vector.y;
+
+				var text_x = ((x + 1)/2) * window.innerWidth;
+				var text_y = - ((y - 1)/2) * window.innerHeight;
+				
+				text_x -= 5;
+				text_y -= 5;
+				
+				text_overlay.setAttribute('style', 'width: 10px; height: 10px; background-color: #f0f; position: absolute;'+
+					'top: '+ text_y +'px;' +
+					'left: '+ text_x +'px;');
+
+*/
+			}
+
+		</script>
+
+	</body>
+</html>
