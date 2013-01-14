@@ -11,7 +11,8 @@
   "dependencies": {
     "express": "3.x",
     "schema": "x",
-    "mongojs": "x"
+    "mongojs": "x",
+    "jade": "x"
   },
   "author": "Jaune",
   "license": "BSD"

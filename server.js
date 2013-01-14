@@ -29,6 +29,11 @@ function validate_json_body (description) {
 }
 
 app.configure(function () {
+	app.engine('jade', require('jade').__express);
+	app.set('view engine', 'jade');
+	app.set('views', 'view');
+
+
 	app.use(express['static'](__dirname));
 	app.use(app.router);
 	app.use(function (err, req, res, next) {
@@ -273,6 +278,40 @@ Subsector.create = function (sector_id, x, y, next) {
 		next(null, subsectors[0]);
 	});
 };
+
+Subsector.find = function (sector_id, x, y, next) {
+	Subsector.findSystems(sector_id, x, y, function (err, systems) {
+		if (err) { next(err); return; }
+		next(null, {
+			x: x,
+			y: y,
+			sector_id: sector_id,
+			systems: systems
+		});
+	});
+};
+
+
+Subsector.findSystems = function (sector_id, x, y, next) {
+	var query = {
+		sector_id: sector_id,
+		x: x,
+		y: y
+	};
+	db.subsectors.find(query, function (err, subsectors) {
+		if (err) { next(err); return; }
+		if (subsectors.length !== 1) { next(new Error('Invalid id.')); return; }
+		var subsector = subsectors[0];
+		next(null, subsector.systems.map(function (system, index) {
+			return {
+				index: index,
+				x: system.x,
+				y: system.y
+			};
+		}));
+	});
+};
+
 /*
 
 Subsector.discoverByID = function (subsector_id, system_index, radius, next) {
@@ -355,47 +394,7 @@ function findPlayerSectorSystems(player_id, sector_id, next) {
 }
 */
 
-app.get('/players/:player_id', function(req, res, next) {
-	var player_id = ObjectId(req.params.player_id);
 
-	findPlayer(player_id, function (err, player) {
-		if (err) { next(err); return; }
-		res.send(player);
-	});
-});
-/*
-app.get('/players/:player_id/totems/', function(req, res, next){
-	var player_id = ObjectId(req.params.player_id);
-
-	findPlayerTotems(player_id, function (err, totems) {
-		if (err) { next(err); return; }
-		res.send(totems);
-	});
-});
-*/
-
-
-app.get('/players/:player_id/subsectors/:subsector_x/:subsector_y', function(req, res, next){
-	var player_id = ObjectId(req.params.player_id);
-	var subsector_x = 1 * req.params.subsector_x;
-	var subsector_y = 1 * req.params.subsector_y;
-/*
-	var systems = [];
-	for ( var i = 0; i < 10; i ++ ) {
-		systems.push({
-			index: i,
-			x: Math.random() - 0.5,
-			y: Math.random() - 0.5
-		});
-	}
-*/
-
-	PlayerSubsector.find(player_id, subsector_x, subsector_y, function (err, subsector) {
-		if (err) { next(err); return; }
-		res.send(subsector);
-	});
-
-});
 
 var PlayerSubsector = {};
 
@@ -480,7 +479,94 @@ app.post('/players/', [express.json(), validate_json_body({
 	});
 });
 
+app.get('/players/:player_id', function(req, res, next) {
+	var player_id = ObjectId(req.params.player_id);
 
+	findPlayer(player_id, function (err, player) {
+		if (err) { next(err); return; }
+		res.send(player);
+	});
+});
+/*
+app.get('/players/:player_id/totems/', function(req, res, next){
+	var player_id = ObjectId(req.params.player_id);
+
+	findPlayerTotems(player_id, function (err, totems) {
+		if (err) { next(err); return; }
+		res.send(totems);
+	});
+});
+*/
+
+
+app.get('/sectors/', function(req, res, next){
+	var query = {
+//		$limit: 1
+	};
+	db.sectors.find(query, function (err, sectors) {
+		if (err) { next(err); return; }
+
+		res.format({
+			html: function(){
+				res.render('sectors', { sectors: sectors }, function(err, html) {
+					if (err) { next(err); return; }
+					res.send(html);
+				});
+			},
+			json: function(){
+				res.send(sectors);
+			}
+		});
+	});
+});
+
+app.get('/sectors/:sector_id', function(req, res, next) {
+	var sector_id = ObjectId(req.params.sector_id);
+	var query = {
+		_id: sector_id
+	};
+	db.sectors.findOne(query, function (err, sector) {
+		if (err) { next(err); return; }
+		if (!sector) { next(new Error('Invalid id.')); return; }
+
+		res.format({
+			html: function(){
+				console.log(sector);
+				res.render('sector', { sector: sector }, function(err, html) {
+					if (err) { next(err); return; }
+					res.send(html);
+				});
+			},
+			json: function(){
+				res.send(sector);
+			}
+		});
+	});
+});
+
+app.get('/sectors/:sector_id/subsectors/:subsector_x/:subsector_y', function(req, res, next){
+	var sector_id = ObjectId(req.params.sector_id);
+	var subsector_x = 1 * req.params.subsector_x;
+	var subsector_y = 1 * req.params.subsector_y;
+
+	Subsector.find(sector_id, subsector_x, subsector_y, function (err, subsector) {
+		if (err) { next(err); return; }
+		res.send(subsector);
+	});
+
+});
+
+app.get('/players/:player_id/subsectors/:subsector_x/:subsector_y', function(req, res, next){
+	var player_id = ObjectId(req.params.player_id);
+	var subsector_x = 1 * req.params.subsector_x;
+	var subsector_y = 1 * req.params.subsector_y;
+
+	PlayerSubsector.find(player_id, subsector_x, subsector_y, function (err, subsector) {
+		if (err) { next(err); return; }
+		res.send(subsector);
+	});
+
+});
 
 app.listen(80);
 console.log('Listening on port 80');

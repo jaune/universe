@@ -1,0 +1,7 @@
+html
+  head
+    title Sectors
+  body
+    for sector in sectors
+      li
+        a(href='/sectors/' + sector._id)= sector._id

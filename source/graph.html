@@ -168,40 +168,6 @@
 
 			var sector = new Sector();
 
-
-/*
-			$.getJSON('/players/'+player_id, function (player, status, xhr) {
-				if (!$.isPlainObject(player)) {
-					console.error('--*--');
-					return;
-				}
-				if (!data.hasOwnProperty('throne')) {
-					console.error('--*--');
-					return;
-				}
-				loadSector(player.throne.sector, function () {
-					next();
-				});
-			});
-
-			$.getJSON('/players/'+player_id+'/totems/', function (data, status, xhr) {
-				console.debug(status);
-				if (!$.isArray(data)) {
-					console.error('--*--');
-					return;
-				}
-				data.forEach(function (totem) {
-					if (!$.isArray(totem.systems)) {
-						console.error('--*--');
-						return;
-					}
-					totem.systems.forEach(function (system) {
-						console.debug('-#-');
-						console.debug(system);
-					});
-				});
-			});
-*/
 			initTexture(systemTexture, '/asset/Icon_Art_v7_quote.png', function (err) {
 				if (err) {
 					throw new Error(err);
@@ -303,6 +269,11 @@
 
 				loadPlayer(player_id, function (err, player) {
 					if (err) { throw err; }
+
+					loadArray('/sectors/', function (err, sectors) {
+						if (err) { throw err; }
+						console.debug(sectors);
+					});
 
 					sector.setPlayerId(player_id);
 
