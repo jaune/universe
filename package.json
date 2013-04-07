@@ -12,7 +12,7 @@
     "express": "3.x",
     "schema": "x",
     "mongojs": "x",
-    "jade": "x"
+    "hbs": "x"
   },
   "author": "Jaune",
   "license": "BSD"

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>{{title}}</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #000;
+				margin: 0px;
+				overflow: hidden;
+			}
+		</style>
+		<script type="text/javascript" src="/source/kernel.js"></script>
+		{{#each pageRequires}}<script type="text/javascript" src="{{this}}"></script>{{/each}}
+	</head>
+	<body>
+		<script type="text/javascript">
+			var page = kernel.create('{{pageCassName}}');
+			page.beforInsert();
+		</script>
+		{{{pageBody}}}
+		<script type="text/javascript">
+			page.afterInsert();
+			window.addEventListener('load', function () {
+				page.afterLoad();
+			}, false);
+		</script>
+	</body>
+</html>

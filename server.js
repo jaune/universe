@@ -3,13 +3,16 @@ var app = express();
 var mongojs = require('mongojs');
 var schemas = require('schema')('schemas');
 
+var Kernel = require('./source/kernel.js').Kernel;
+var kernel = new Kernel();
+
 var ObjectId = mongojs.ObjectId;
 
-var db = mongojs.connect('mydb', [
+var db = mongojs.connect('localhost:27017/mydb', [
 	'players',
 	'totems',
 	'systems',
-	
+
 	'sectors',
 	'subsectors',
 	'subsectors_via_player'
@@ -29,9 +32,9 @@ function validate_json_body (description) {
 }
 
 app.configure(function () {
-	app.engine('jade', require('jade').__express);
-	app.set('view engine', 'jade');
-	app.set('views', 'view');
+	app.engine('hbs', require('hbs').__express);
+	app.set('view engine', 'hbs');
+	app.set('views', __dirname+'/source/template');
 
 
 	app.use(express['static'](__dirname));
@@ -117,7 +120,7 @@ Sector.create = function (next) {
 Sector.discover = function (sector_id, x, y, radius, next) {
 	var min_x = Math.floor(x - radius);
 	var min_y = Math.floor(y - radius);
-	
+
 	var max_x = Math.ceil(y + radius);
 	var max_y = Math.ceil(x + radius);
 
@@ -152,7 +155,7 @@ Sector.discover = function (sector_id, x, y, radius, next) {
 
 		Subsectors.create(sector_id, new_subsectors, function (err, new_subsectors) {
 			if (err) { next(err); return; }
-			
+
 			next(null, new_subsectors.concat(subsectors));
 		});
 	});
@@ -454,30 +457,14 @@ PlayerSubsector.findSystems = function (player_id, x, y, next) {
 					y: system.y
 				});
 			}, systems);
-			
+
 			next(null, systems);
 		});
 	});
 };
 
 
-app.post('/players/', [express.json(), validate_json_body({
-	type: 'object',
-	properties: {
-		'name': {
-			'type': 'string',
-			'minLength': 3,
-			'maxLength': 64,
-			'required': true
-		}
-	},
-	additionalProperties: false
-})], function(req, res, next) {
-	Player.create(req.body.name, function (err, player) {
-		if (err) { next(err); return; }
-		res.send(player);
-	});
-});
+
 
 app.get('/players/:player_id', function(req, res, next) {
 	var player_id = ObjectId(req.params.player_id);
@@ -499,25 +486,24 @@ app.get('/players/:player_id/totems/', function(req, res, next){
 */
 
 
-app.get('/sectors/', function(req, res, next){
+app.get('/sectors/', function(req, res, next) {
 	var query = {
-//		$limit: 1
 	};
-	db.sectors.find(query, function (err, sectors) {
+	db.sectors.find(query).limit(3, function (err, sectors) {
 		if (err) { next(err); return; }
-
 		res.format({
 			html: function(){
 				res.render('sectors', { sectors: sectors }, function(err, html) {
 					if (err) { next(err); return; }
-					res.send(html);
+					res.end(html);
 				});
 			},
 			json: function(){
-				res.send(sectors);
+				res.end(sectors);
 			}
 		});
 	});
+
 });
 
 app.get('/sectors/:sector_id', function(req, res, next) {
@@ -532,7 +518,15 @@ app.get('/sectors/:sector_id', function(req, res, next) {
 		res.format({
 			html: function(){
 				console.log(sector);
-				res.render('sector', { sector: sector }, function(err, html) {
+				var scripts = [
+					// '/library/zepto.min.js',
+					// '/library/three.js/build/three.min.js',
+					// '/source/MyControls.js',
+					// '/source/view/sector.js',
+					'/source/kernel.js',
+					'/source/page/sector.js'
+				];
+				res.render('sector', { scripts: scripts, sector: sector }, function(err, html) {
 					if (err) { next(err); return; }
 					res.send(html);
 				});
@@ -567,6 +561,71 @@ app.get('/players/:player_id/subsectors/:subsector_x/:subsector_y', function(req
 	});
 
 });
+
+
+
+
+
+
+
+
+app.post('/players/', [express.json(), validate_json_body({
+	type: 'object',
+	properties: {
+		'name': {
+			'type': 'string',
+			'minLength': 3,
+			'maxLength': 64,
+			'required': true
+		}
+	},
+	additionalProperties: false
+})], function(req, res, next) {
+	kernel.include('store.Player');
+
+	var store = kernel.create('store.Player');
+
+	store.create(req.body.name, function (err, player) {
+		if (err) { next(err); return; }
+
+
+		res.send('/players/'+player._id );
+	});
+});
+
+
+
+
+
+
+
+app.get('/page/:page_class', function(req, res, next){
+	// var classname = req.params.page_class;
+	var classname = 'page.Sector';
+
+	kernel.include(classname);
+
+	var template = classname.replace('.', '/');
+	var page = kernel.create(classname);
+	var requires = kernel.buildRequires(classname);
+
+	res.render(template, {  }, function(err, pageBody) {
+		if (err) { next(err); return; }
+
+		res.render('page', {
+			pageRequires: requires.map(function (require) {
+				return '/source/'+require.replace('.', '/')+'.js';
+			}),
+			pageBody: pageBody,
+			pageCassName: classname
+		}, function(err, html) {
+			if (err) { next(err); return; }
+			res.send(html);
+		});
+
+	});
+});
+
 
 app.listen(80);
 console.log('Listening on port 80');
