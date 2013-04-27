@@ -15,8 +15,8 @@ kernel
 /**
  *
  */
-.service('mongodb', ['players'])
-.service('store', ['sectors'])
+.use('mongodb', ['players'])
+.use('store', ['sectors'])
 .property('create', function (name, next) {
 	var services = this.services;
 

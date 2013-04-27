@@ -1,5 +1,5 @@
 kernel
-.define('page.Sector')
+.define('account.page.confirm.Controller')
 
 // .require('Page')
 
@@ -7,15 +7,15 @@ kernel
  *
  */
 .construct(function () {
-	kernel.console('--*--');
+	kernel.console('--page.register.Controller--');
 })
 
 
 /**
  *
  */
-.property('beforInsert', function (a) {
-	kernel.console('---beforInsert---');
+.property('beforeInsert', function (a) {
+	kernel.console('---beforeInsert---');
 })
 
 /**

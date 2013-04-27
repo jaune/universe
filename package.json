@@ -12,7 +12,9 @@
     "express": "3.x",
     "schema": "x",
     "mongojs": "x",
-    "hbs": "x"
+    "nodemailer": "x",
+    "hbs": "x",
+    "simple-recaptcha" : "x"
   },
   "author": "Jaune",
   "license": "BSD"

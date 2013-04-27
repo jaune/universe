@@ -4,23 +4,38 @@
 		<title>{{title}}</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		
 		<style>
-			body {
-				font-family: Monospace;
-				background-color: #000;
-				margin: 0px;
-				overflow: hidden;
-			}
+			/* @import url(/asset/twitter/bootstrap/css/bootstrap.min.css); */
+			@import url(/asset/bootswatch/cosmo/bootstrap.min.css);
+			@import url(/asset/twitter/bootstrap/css/bootstrap-responsive.min.css);
 		</style>
+
+		<!-- <script type="text/javascript" src="/asset/twitter/bootstrap/js/bootstrap.min.js"></script> -->
+
+		<script type="text/javascript" src="http://www.calormen.com/polyfill/polyfill.js"></script>
 		<script type="text/javascript" src="/source/kernel.js"></script>
 		{{#each pageRequires}}<script type="text/javascript" src="{{this}}"></script>{{/each}}
 	</head>
 	<body>
 		<script type="text/javascript">
+			kernel.
+			registerService('template', function () {
+				return {
+					use: function (parameters) {
+						return {};
+					}
+				};
+			});
+			
 			var page = kernel.create('{{pageCassName}}');
-			page.beforInsert();
+			page.beforeInsert();
 		</script>
-		{{{pageBody}}}
+		
+		<div class="container">
+			{{{pageBody}}}
+		</div>
+
 		<script type="text/javascript">
 			page.afterInsert();
 			window.addEventListener('load', function () {

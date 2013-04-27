@@ -1,0 +1,37 @@
+<form class="form-signin" action="{{action}}" method="{{method}}">
+	<h2 class="form-signin-heading">Please register</h2>
+
+	<div class="control-group">
+		<label class="control-label" for="input0">Email address</label>
+		<div class="controls">
+			<input id="input0" name="email" type="text" class="" placeholder="Email address">
+		</div>
+	</div>
+
+	<div id="recaptcha_widget" class="control-group" style="display:none">
+		<label class="control-label" for="recaptcha_response_field">Captcha</label>
+		<div class="controls">
+			<span id="recaptcha_image"></span>	
+			<div class="input-append">
+				<input type="text" id="recaptcha_response_field" name="recaptcha_response_field" class="input-recaptcha" placeholder="Captcha" />
+				<a class="btn add-on" href="javascript:Recaptcha.reload()"><i class="icon-refresh"></i></a>
+				<a class="btn add-on recaptcha_only_if_image" href="javascript:Recaptcha.switch_type('audio')"><i title="Get an audio CAPTCHA" class="icon-headphones"></i></a>
+				<a class="btn add-on recaptcha_only_if_audio" href="javascript:Recaptcha.switch_type('image')"><i title="Get an image CAPTCHA" class="icon-picture"></i></a>
+				<a class="btn add-on" href="javascript:Recaptcha.showhelp()"><i class="icon-question-sign"></i></a>
+			</div>
+			<div class="recaptcha_only_if_incorrect_sol help-inline" style="color:red">Incorrect please try again</div>
+		</div>
+		<script type="text/javascript">
+			var RecaptchaOptions = {
+				theme : 'custom',
+				lang : 'fr',
+				custom_theme_widget: 'recaptcha_widget'
+			};
+		</script>
+		<script type="text/javascript" src="https://www.google.com/recaptcha/api/challenge?k={{recaptcha_key}}"></script>
+	</div>
+		
+
+
+	<button class="btn btn-large btn-primary" type="submit">Register</button>
+</form>
