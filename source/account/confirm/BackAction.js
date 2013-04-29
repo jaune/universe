@@ -51,7 +51,6 @@ kernel
 		}
 	});
 
-	
 })
 
 .property('sendMail', function (next) {
@@ -60,7 +59,7 @@ kernel
 	var secret = this.hasher.digest(to);
 	var url = this.urlize('account/confirm.form', {
 		'#secret':  secret,
-		'#mail', to
+		'#mail': to
 	});
 
 	this.mail.send({
@@ -69,6 +68,6 @@ kernel
 		text: 'Confirm ✔ ('+url+')',
 		html: '<a href="'+url+'">Confirm ✔</b>'
 	}, next);
-});
+})
 
 ;

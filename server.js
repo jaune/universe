@@ -5,7 +5,6 @@ var schemas = require('schema')('schemas');
 var url = require('url');
 var crypto = require('crypto');
 
-
 var Kernel = require('./source/kernel.js').Kernel;
 var kernel = new Kernel();
 
@@ -126,7 +125,7 @@ registerServiceFactory('urlize', function () {
 				get: function () {
 					return urlize;
 				}
-			}
+			};
 		}
 	};
 });
@@ -150,7 +149,7 @@ registerServiceFactory('recaptcha', function () {
 						}
 					};
 				}
-			}
+			};
 		}
 	};
 });
@@ -159,14 +158,14 @@ registerServiceFactory('recaptcha', function () {
 kernel.
 registerServiceFactory('mail', function () {
 	var nodemailer = require('nodemailer');
-		
+
 	var from = 'JauneLaCouleur <jaunelacouleur@gmail.com>';
 
 	var smtpTransport = nodemailer.createTransport("SMTP", {
 		service: 'Gmail',
 		auth: {
 			user: 'jaunelacouleur@gmail.com',
-			pass: 'adrienatzert77'
+			pass: '************'
 		}
 	});
 	return {
@@ -188,10 +187,11 @@ registerServiceFactory('mail', function () {
 						}
 					};
 				}
-			}
+			};
 		}
 	};
 });
+
 
 kernel.
 registerServiceFactory('input', function () {
@@ -202,7 +202,7 @@ registerServiceFactory('input', function () {
 				throw new TypeError('Use `input` expected one parameter.');
 			}
 			var definition = parameters[0];
-			var type = typeof definition
+			var type = typeof definition;
 			if (type !== 'object') {
 				throw new TypeError('`input` `input` expected one parameter, `object` exprected, given `'+type+'`.');
 			}
@@ -211,9 +211,62 @@ registerServiceFactory('input', function () {
 			return {
 				'before-running#middlewares': [
 					function (request, response, next) {
-						
-						kernel.console(request.body);
+						var contenttype = request.headers['content-type'];
+						var parserClassName = null;
 
+						if (contenttype.match(/www-form/i)) {
+							parserClassName = 'input.wwwform.Parser';
+						}
+/*
+						if (contenttype.match(/json/i)) {
+							parserClassName = 'input.json.Parser';
+						}
+						if (contenttype.match(/json/i)) {
+							parserClassName = 'input.json.Parser';
+						}
+*/
+						if (!parserClassName) {
+							return next(new Error('Missing input parser for content type `'+contenttype+'`.'));
+						}
+
+						kernel.include(parserClassName);
+						var parser = kernel.create(parserClassName);
+						parser
+							.on('error', function (error) {
+								return next(error);
+							})
+							.on('end', function () {
+								return next();
+							})
+							.on('input', function (name, value) {
+								kernel.console('+++'+name+'+++');
+								kernel.console(value);
+							})
+						;
+
+						request
+							.on('error', function (error) {
+								return next(error);
+							})
+							.on('close', function () {
+								kernel.console('+++close');
+								return next(new Error('Closed...'));
+							})
+							.on('data', function (data) {
+
+								kernel.console('+++data');
+								kernel.console(data);
+
+								parser.write(data);
+							})
+							.on('end', function () {
+								kernel.console('+++end');
+								parser.end();
+							})
+						;
+
+
+/*
 						Object.keys(definition).forEach(function (name) {
 							var source = definition[name].source;
 
@@ -226,14 +279,14 @@ registerServiceFactory('input', function () {
 								enumerable: true
 							});
 						});
+*/
 
-						return next();
 					}
 				],
 				get: function () {
 					return values;
 				}
-			}
+			};
 		}
 	};
 });
@@ -260,7 +313,7 @@ registerServiceFactory('account.hasher', function () {
 						}
 					};
 				}
-			}
+			};
 		}
 	};
 });
@@ -304,7 +357,7 @@ registerServiceFactory('template', function () {
 						local: function (n, v) {
 							locals[n] = v;
 						}
-					}
+					};
 				}
 			};
 		}
@@ -369,26 +422,21 @@ function middleware_service_run_middlewares (event) {
 }
 
 app.post('/action/:action_name/', [
-	express.bodyParser(),
 	middleware_action('Append'),
 	middleware_service_run_middlewares('before-running'),
 	middleware_run_action(),
-	middleware_service_run_middlewares('after-running'),
+	middleware_service_run_middlewares('after-running')
 ], function(req, res) {
-	
 	kernel.console('done!');
-
 });
 
 app.get('/action/:action_name', [
 	middleware_action('Display'),
 	middleware_service_run_middlewares('before-running'),
 	middleware_run_action(),
-	middleware_service_run_middlewares('after-running'),
+	middleware_service_run_middlewares('after-running')
 ], function(req, res) {
-
 	kernel.console('done!');
-
 });
 /*
 function render_template(res, locals, next) {
