@@ -192,7 +192,7 @@
 		var constructor = definition.mConstructor,
 			parentPrototype = Object.prototype,
 			properties = {
-				'@name': { value: definition.mName }
+				'~name': { value: definition.mName }
 			},
 			parentName = definition.mParent || null,
 			parentDefinition = null;

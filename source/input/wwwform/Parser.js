@@ -31,7 +31,7 @@ kernel
 
 	couples.forEach(function (couple) {
 		var parts = couple.split(/=/i, 2);
-		this.emit('input', parts[0], parts[1]);
+		this.emit('input', decodeURIComponent(parts[0]), decodeURIComponent(parts[1]));
 	}, this);
 	this.emit('end');
 })

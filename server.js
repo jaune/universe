@@ -251,11 +251,6 @@ registerServiceFactory('input', function () {
 							})
 							.on('input', function (name, value) {
 								if (inputsByName.hasOwnProperty(name)) {
-/*
-									kernel.console('==>'+name+'<==');
-									kernel.console('==<'+inputsByName[name].name+'>==');
-									kernel.console(value);
-*/
 									Object.defineProperty(values, inputsByName[name].name, {
 										value: value,
 										enumerable: true
@@ -426,6 +421,10 @@ app.post('/action/:action_name/', [
 	middleware_service_run_middlewares('after-running')
 ], function(req, res) {
 	kernel.console('done!');
+
+	if (!res.headersSent) {
+		res.send('done!');
+	}
 });
 
 app.get('/action/:action_name', [
@@ -435,6 +434,10 @@ app.get('/action/:action_name', [
 	middleware_service_run_middlewares('after-running')
 ], function(req, res) {
 	kernel.console('done!');
+
+	if (!res.headersSent) {
+		res.send('done!');
+	}
 });
 /*
 function render_template(res, locals, next) {
