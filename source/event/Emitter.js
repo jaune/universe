@@ -4,14 +4,20 @@ kernel
 /**
  *
  */
-.property('listeners', {})
-
+.attribute('listeners')
 
 /**
  *
  */
-.property('on', function (event, listener) {
-	if (this.listeners.hasOwnProperty(event)) {
+.constructor(function () {
+	this.listeners = {};
+})
+
+/**
+ *
+ */
+.method('on', function (event, listener) {
+	if (!this.listeners.hasOwnProperty(event)) {
 		this.listeners[event] = [];
 	}
 	this.listeners[event].push(listener);
@@ -21,7 +27,7 @@ kernel
 /**
  *
  */
-.property('emit', function () {
+.method('emit', function () {
 	var length = arguments.length;
 
 	if (length < 1) {
@@ -30,7 +36,7 @@ kernel
 
 	var event = arguments[0];
 
-	if (this.listeners.hasOwnProperty(event)) {
+	if (!this.listeners.hasOwnProperty(event)) {
 		return;
 	}
 

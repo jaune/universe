@@ -5,13 +5,18 @@ kernel
 /**
  *
  */
-.property('write', function (buffer) {
+.method('write', function (buffer) {
+	kernel.console('input.wwwform.Parser#write()');
 })
 
 /**
  *
  */
-.property('end', function () {
+.method('end', function () {
+
+	kernel.console('input.wwwform.Parser#end()');
+
+	this.emit('end');
 })
 
 ;

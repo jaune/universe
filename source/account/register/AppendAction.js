@@ -31,7 +31,7 @@ kernel
 /**
  *
  */
-.property('run', function (next) {
+.method('run', function (next) {
 	var me = this;
 	var challenge = this.input.challenge;
 	var response = this.input.response;
@@ -48,7 +48,7 @@ kernel
 	});
 })
 
-.property('sendMail', function (next) {
+.method('sendMail', function (next) {
 	var to = this.input.mail;
 
 	var secret = this.hasher.digest(to);
@@ -63,6 +63,6 @@ kernel
 		text: 'Confirm ✔ ('+url+')',
 		html: '<a href="'+url+'">Confirm ✔</b>'
 	}, next);
-});
+})
 
 ;

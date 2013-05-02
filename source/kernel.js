@@ -20,6 +20,20 @@
 		this.mClosure = closure;
 	};
 
+	MethodDefinition.prototype.mName = null;
+	MethodDefinition.prototype.mClosure = null;
+
+	/**
+	 *
+	 */
+	var AttributeDefinition = function (name, value) {
+		this.mName = name;
+		this.mValue = value;
+	};
+
+	AttributeDefinition.prototype.mName = null;
+	AttributeDefinition.prototype.mValue = null;
+
 	/**
 	 *
 	 */
@@ -28,7 +42,16 @@
 		this.mRequires = [];
 		this.mMethods = [];
 		this.mUses = [];
+		this.mAttributes = [];
 	};
+
+	Definition.prototype.mName = null;
+	Definition.prototype.mParent = null;
+	Definition.prototype.mRequires = null;
+	Definition.prototype.mMethods = null;
+	Definition.prototype.mAttributes = null;
+	Definition.prototype.mUses = null;
+	Definition.prototype.mConstructor = null;
 
 	Definition.prototype.use = function () {
 		var l = arguments.length;
@@ -44,12 +67,25 @@
 		return this;
 	};
 
-	Definition.prototype.property = function (name, closure) {
+	Definition.prototype.method = function (name, closure) {
 		if (typeof closure === 'function') {
 			this.mMethods.push(new MethodDefinition(name, closure));
 		} else {
 			throw new Error('Unsupported');
 		}
+		return this;
+	};
+
+	Definition.prototype.constructor = function (closure) {
+		if (this.mConstructor) {
+			throw new TypeError('Constructor already defined.');
+		}
+		this.mConstructor = closure;
+		return this;
+	};
+
+	Definition.prototype.attribute = function (name, value) {
+		this.mAttributes.push(new AttributeDefinition(name, value));
 		return this;
 	};
 
@@ -65,16 +101,23 @@
 		return this;
 	};
 
+	Definition.prototype.inherits = function (parent) {
+		this.mParent = parent;
+		return this;
+	};
+
 	/**
 	 *
 	 */
 	var AbstractKernel = function () {
 		this.mDefinitions = {};
-		this.mObjects = {};
-
-
+		this.mConstructors = {};
 		this.mServiceFactories = {};
 	};
+
+	AbstractKernel.prototype.mDefinitions = null;
+	AbstractKernel.prototype.mConstructors = null;
+	AbstractKernel.prototype.mServiceFactories = null;
 
 	AbstractKernel.prototype.define = function (name) {
 		var d = new Definition(name);
@@ -103,6 +146,13 @@
 		return this.mDefinitions.hasOwnProperty(name);
 	};
 
+	AbstractKernel.prototype.getDefinition = function (name) {
+		if (!this.hasDefinition(name)) {
+			throw new TypeError('Missing definition `'+name+'`.');
+		}
+		return this.mDefinitions[name];
+	};
+
 	AbstractKernel.prototype.getServiceFactoryInstance = function (name) {
 		if (!this.mServiceFactories.hasOwnProperty(name)) {
 			throw new Error('Unregistered service factory `'+name+'`.');
@@ -111,7 +161,7 @@
 		if (factory.instance) {
 			return factory.instance;
 		}
-		
+
 		var type = typeof factory.builder;
 		var instance = null;
 		switch (type) {
@@ -119,12 +169,12 @@
 					instance = factory.builder();
 				break;
 			case 'string':
-					throw new Error('Unsupported yet !');
-				break;
+				throw new Error('Unsupported yet !');
 			default:
 				throw new Error('Wrong factory builder type `'+type+'`.');
 		}
-		return factory.instance = instance;
+		factory.instance = instance;
+		return instance;
 	};
 
 	AbstractKernel.prototype.registerServiceFactory = function (name, builder) {
@@ -134,48 +184,85 @@
 		};
 	};
 
+	AbstractKernel.prototype.buildConstructor = function (definition) {
+		var constructor = definition.mConstructor,
+			parentPrototype = Object.prototype,
+			properties = {
+				'@name': { value: definition.mName }
+			},
+			parentName = definition.mParent || null,
+			parentDefinition = null;
+
+		if (parentName) {
+			parentDefinition =  this.getDefinition(parentName);
+			parentPrototype = this.getConstructor(parentName).prototype;
+
+			if (!constructor) {
+				constructor = parentDefinition.mConstructor;
+			}
+		}
+
+		constructor = constructor || function () { };
+
+		definition.mAttributes.forEach(function (attribute) {
+			properties[attribute.mName] = {
+				value: null,
+				writable: true,
+				enumerable: true
+			};
+		}, this);
+
+		var services = [];
+		definition.mUses.forEach(function (use) {
+			var name = use.mName;
+			var alias = name;
+			var names = name.split('@', 2);
+			if (names.length === 2) {
+				name = names[0];
+				alias = names[1];
+			}
+			var useParameters = use.mParameters;
+			var service = this.getServiceFactoryInstance(name).build(useParameters);
+			services.push({
+				name: name,
+				parameters: useParameters,
+				instance: service
+			});
+			properties[alias] = {
+				get : function () { return service.get(); },
+				set : function (value) { return service.set(value); }
+			};
+		}, this);
+		properties['services'] = { value : services };
+
+		if (parentDefinition) {
+			parentDefinition.mMethods.forEach(function (method) {
+				properties[method.mName] = {value : method.mClosure, enumerable: true };
+			}, this);
+		}
+
+		definition.mMethods.forEach(function (method) {
+			properties[method.mName] = {value : method.mClosure, enumerable: true };
+		}, this);
+
+		constructor.prototype = Object.create(parentPrototype, properties);
+
+		return constructor;
+
+	};
+
+	AbstractKernel.prototype.getConstructor = function (name) {
+		var definition = this.getDefinition(name);
+		if (!this.mConstructors.hasOwnProperty(name)) {
+			this.mConstructors[name] = this.buildConstructor(definition);
+		}
+		return this.mConstructors[name];
+	};
+
 	AbstractKernel.prototype.create = function (name, parameters) {
-		if (!this.hasDefinition(name)) {
-			throw new TypeError('Missing define `'+name+'`.');
-		}
-		if (!this.mObjects.hasOwnProperty(name)) {
+		var constructor = this.getConstructor(name);
 
-			var k = this,
-				definition = this.mDefinitions[name],
-				object = function () { };
-
-			object.prototype = Object.create(Object.prototype);
-
-			var services = [];
-			definition.mUses.forEach(function (use) {
-				var name = use.mName;
-				var alias = name;
-				var names = name.split('@', 2);
-				if (names.length === 2) {
-					name = names[0];
-					alias = names[1];
-				}
-				var useParameters = use.mParameters;
-				var service = k.getServiceFactoryInstance(name).build(useParameters);
-				services.push({
-					name: name,
-					parameters: useParameters,
-					instance: service
-				});
-				Object.defineProperty(object.prototype, alias, { 
-					get : function () { return service.get(); },
-					set : function (value) { return service.set(value); }
-				});
-			});
-			Object.defineProperty(object.prototype, 'services', { value : services } );		
-
-			definition.mMethods.forEach(function (method) {
-				Object.defineProperty(object.prototype, method.mName, {value : method.mClosure, enumerable: true } );
-			});
-
-			this.mObjects[name] = object;
-		}
-		return new this.mObjects[name](parameters);
+		return new constructor(parameters);
 	};
 
 	/**
@@ -195,33 +282,44 @@
 	NodeKernel.prototype.runClassCode = function (name, sandbox) {
 		var filename = __dirname+'/'+name.replace(/\./g, '/')+'.js';
 		var code = this.modules.fs.readFileSync(filename);
+
 		try {
-			this.modules.vm.runInNewContext(code, sandbox, filename);	
+			this.modules.vm.runInNewContext(code, sandbox, filename);
 		} catch (error) {
-			throw TypeError('`'+filename+'`\n'+error.message);
+			throw new TypeError('`'+filename+'`\n'+error.message);
 		}
-		return sandbox;
 	};
 
 	NodeKernel.prototype.include = function (name) {
 		var requires = this.buildRequires(name);
+
 		requires.forEach(function (require) {
-			if (!this.mDefinitions.hasOwnProperty(require)) {
-				var sandbox = {
-					kernel: this
-				};
-				this.runClassCode(name, sandbox);
-			}
+			this.includeOnce(require);
 		}, this);
 	};
 
-	NodeKernel.prototype.buildRequires = function () {
-		var require_name = null;
-		var requires = [];
-		var stack = [];
-		var pushInStack = function (require) {
-			stack.push(require);
+	NodeKernel.prototype.includeOnce = function (name) {
+		if (this.hasDefinition(name)) {
+			return;
+		}
+
+		var sandbox = {
+			kernel: this
 		};
+		this.runClassCode(name, sandbox);
+
+		if (!this.hasDefinition(name)) {
+			throw new Error('Missing definition `'+name+'` after including.');
+		}
+	};
+
+	NodeKernel.prototype.buildRequires = function () {
+		var require_name = null,
+			requires = [],
+			stack = [],
+			pushInStack = function (require) {
+				stack.push(require);
+			};
 
 		for (i = 0, l = arguments.length; i < l; i++) {
 			this.requestRequires(arguments[i]).forEach(pushInStack);
@@ -274,11 +372,20 @@
 		return this;
 	};
 
-	NodeFakeDefinition.prototype.property = function () {
+	NodeFakeDefinition.prototype.inherits = function (parent) {
+		this.fake.requires.push(parent);
 		return this;
 	};
 
-	NodeFakeDefinition.prototype.construct = function () {
+	NodeFakeDefinition.prototype.method = function () {
+		return this;
+	};
+
+	NodeFakeDefinition.prototype.attribute = function () {
+		return this;
+	};
+
+	NodeFakeDefinition.prototype.constructor = function () {
 		return this;
 	};
 
