@@ -208,9 +208,20 @@ registerServiceFactory('input', function () {
 			}
 			var values = {};
 
+			var inputsByName = {};
+
+			Object.keys(definition).forEach(function (name) {
+				inputsByName[definition[name].name] = {
+					name: name,
+					definition: definition[name]
+				};
+			});
+
 			return {
 				'before-running#middlewares': [
 					function (request, response, next) {
+						values = {};
+
 						var contenttype = request.headers['content-type'];
 						var parserClassName = null;
 
@@ -239,8 +250,18 @@ registerServiceFactory('input', function () {
 								return next();
 							})
 							.on('input', function (name, value) {
-								kernel.console('+++'+name+'+++');
-								kernel.console(value);
+								if (inputsByName.hasOwnProperty(name)) {
+/*
+									kernel.console('==>'+name+'<==');
+									kernel.console('==<'+inputsByName[name].name+'>==');
+									kernel.console(value);
+*/
+									Object.defineProperty(values, inputsByName[name].name, {
+										value: value,
+										enumerable: true
+									});
+
+								}
 							})
 						;
 
@@ -249,38 +270,15 @@ registerServiceFactory('input', function () {
 								return next(error);
 							})
 							.on('close', function () {
-								kernel.console('+++close');
 								return next(new Error('Closed...'));
 							})
 							.on('data', function (data) {
-
-								kernel.console('+++data');
-								kernel.console(data);
-
 								parser.write(data);
 							})
 							.on('end', function () {
-								kernel.console('+++end');
 								parser.end();
 							})
 						;
-
-
-/*
-						Object.keys(definition).forEach(function (name) {
-							var source = definition[name].source;
-
-							kernel.console('+++'+name);
-							kernel.console(source);
-							kernel.console('---'+name);
-
-							Object.defineProperty(values, name, {
-								value: values[name],
-								enumerable: true
-							});
-						});
-*/
-
 					}
 				],
 				get: function () {

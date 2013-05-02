@@ -11,7 +11,7 @@ kernel
 /**
  *
  */
-.property('run', function (next) {
+.method('run', function (next) {
 
 	this.template.locals({
 		'action': this.urlize('account/register', 'append'),

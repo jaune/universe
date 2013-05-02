@@ -184,6 +184,10 @@
 		};
 	};
 
+	AbstractKernel.prototype.callConstructor = function (name, target, parameters) {
+		this.getConstructor(name).apply(target, parameters);
+	};
+
 	AbstractKernel.prototype.buildConstructor = function (definition) {
 		var constructor = definition.mConstructor,
 			parentPrototype = Object.prototype,

@@ -5,17 +5,34 @@ kernel
 /**
  *
  */
+.attribute('buffer')
+
+/**
+ *
+ */
+.constructor(function () {
+	kernel.callConstructor('event.Emitter', this);
+
+	this.buffer = '';
+})
+
+/**
+ *
+ */
 .method('write', function (buffer) {
-	kernel.console('input.wwwform.Parser#write()');
+	this.buffer += buffer.toString('utf8');
 })
 
 /**
  *
  */
 .method('end', function () {
+	var couples = this.buffer.split(/&/i);
 
-	kernel.console('input.wwwform.Parser#end()');
-
+	couples.forEach(function (couple) {
+		var parts = couple.split(/=/i, 2);
+		this.emit('input', parts[0], parts[1]);
+	}, this);
 	this.emit('end');
 })
 

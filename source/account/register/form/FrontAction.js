@@ -8,21 +8,21 @@ kernel
  /**
  *
  */
-.property('beforeInsert', function () {
+.method('beforeInsert', function () {
 
 })
 
 /**
  *
  */
-.property('afterInsert', function () {
+.method('afterInsert', function () {
 
 })
 
 /**
  *
  */
-.property('afterLoad', function () {
+.method('afterLoad', function () {
 
 })
 
